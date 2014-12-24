@@ -1,0 +1,48 @@
+#!/usr/bin/python3
+
+import sys, json, os, sqlite3
+from xdg.BaseDirectory import load_data_paths
+f1, f2 = sys.argv[1:3]
+
+excludes = []
+pths = list(load_data_paths("org.kryogenix.caxton"))
+if len(pths) < 1:
+    # no database available, so blithely continue on
+    pass
+else:
+    db = os.path.join(pths[0], "caxton.u1db")
+    if os.path.exists(db):
+        try:
+            # we should use u1db here rather than hitting the DB
+            # with sqlite directly, but QML u1db doesn't store
+            # in sqlite the same way python u1db does, disappointingly
+            dbh = sqlite3.connect(db)
+            cursor = dbh.cursor()
+            cursor.execute("select content from document where content like '%block%'")
+            for row in cursor.fetchall():
+                j = json.loads(row[0].decode('utf8'))
+                rowtype = j.get("data",{}).get("type")
+                if rowtype and rowtype == "block":
+                    appname = j.get("data",{}).get("appname")
+                    if appname:
+                        excludes.append(appname)
+        except:
+            pass
+
+incoming = open(f1).read()
+try:
+    msg = json.loads(incoming)
+except:
+    sys.exit(1)
+
+msgappname = msg.get("message",{}).get("appname")
+if msgappname:
+    if msgappname in excludes:
+        print("Excluding incoming message from %s because it was ignored" % msgappname)
+        sys.exit(0)
+    else:
+        print("Incoming message from %s is allowed" % msgappname)
+
+outgoing = json.dumps(msg)
+
+open(f2, "w").write(outgoing)

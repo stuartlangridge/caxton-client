@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Caxton
+Exec=qmlscene $@ main.qml
+Icon=Caxton.png
+Terminal=false
+Type=Application
+X-Ubuntu-Touch=true
+X-Ubuntu-Splash-Show-Header=true
+X-Ubuntu-Splash-Color=#1b3540

@@ -1,0 +1,19 @@
+{
+    "name": "org.kryogenix.caxton",
+    "description": "Connecting your phone and your desktop: send web pages and messages from elsewhere to your phone and your apps",
+    "architecture": "all",
+    "title": "Caxton",
+    "hooks": {
+        "Caxton": {
+            "apparmor": "Caxton.apparmor",
+            "desktop": "Caxton.desktop"
+        },
+        "caxtonHelper": {
+            "apparmor": "caxtonHelper.apparmor",
+            "push-helper": "caxtonHelper.json"
+        }
+    },
+    "version": "0.1",
+    "maintainer": "Stuart Langridge <sil-launchpad@kryogenix.org>",
+    "framework": "ubuntu-sdk-14.10"
+}
