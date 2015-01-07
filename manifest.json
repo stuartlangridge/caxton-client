@@ -6,7 +6,8 @@
     "hooks": {
         "Caxton": {
             "apparmor": "Caxton.apparmor",
-            "desktop": "Caxton.desktop"
+            "desktop": "Caxton.desktop",
+            "urls": "Caxton.url-dispatcher"
         },
         "caxtonHelper": {
             "apparmor": "caxtonHelper.apparmor",

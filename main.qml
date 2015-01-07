@@ -3,6 +3,7 @@ import Ubuntu.Components 1.1
 import Ubuntu.PushNotifications 0.1
 import Ubuntu.Components.ListItems 1.0 as ListItem
 import U1db 1.0 as U1db
+import QtGraphicalEffects 1.0
 
 
 /*!
@@ -34,7 +35,29 @@ MainView {
     Timer {
         id: unsetCodeAfterTokenRetrieved
         interval: 1500; running: false; repeat: false
-        onTriggered: code.text = ""
+        onTriggered: {
+            code.text = "";
+            b.state = "backtowaiting";
+            backtowaitingdelay.start();
+        }
+    }
+
+    Connections {
+        target: UriHandler
+        onOpened: {
+            // we got called by tapping a notification
+            // so directly open the URIs thus passed
+            // after decoding them from caxton://caxton.caxton/(encoded http uri)
+            if (!Array.isArray(uris)) { uris = [uris]; }
+            uris.forEach(function(u) {
+                var m = u.match(/^caxton:\/\/caxton\.caxton\/(.*)$/);
+                if (m) {
+                    Qt.openUrlExternally(decodeURIComponent(m[1]));
+                } else {
+                    console.log("unexpected", JSON.stringify(u));
+                }
+            })
+        }
     }
 
     PushClient {
@@ -70,7 +93,7 @@ MainView {
             });
             getNotifications();
         }
-        appId: "org.kryogenix.caxton_caxton"
+        appId: "org.kryogenix.caxton_Caxton"
     }
 
     U1db.Database { id: db; path: "caxton.u1db" }
@@ -167,17 +190,20 @@ MainView {
     Tabs {
         Tab {
             title: i18n.tr("Caxton")
-            page:     Page {
+            page: Page {
                 id: pg
 
-                Column {
-                    id: col
-                    width: parent.width
-                    spacing: units.gu(1)
-                    Item {
-                        id: spacer /* sigh */
-                        height: 1
-                        width: parent.width
+                Rectangle {
+                    id: codebox
+                    width: parent.width - units.gu(4)
+                    height: 110
+                    anchors.top: pg.top
+                    anchors.topMargin: units.gu(1)
+                    anchors.bottomMargin: units.gu(1)
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    color: b.state == "waiting" ? mainView.backgroundColor : Qt.tint(mainView.backgroundColor, "#10ffffff")
+                    Behavior on color {
+                        ColorAnimation { duration: 1000 }
                     }
 
                     Button {
@@ -186,6 +212,7 @@ MainView {
                         text: "Get a code for an app"
                         width: parent.width - units.gu(4)
                         anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.verticalCenter: parent.verticalCenter
                         anchors.topMargin: units.gu(3)
                         gradient: UbuntuColors.orangeGradient
                         onClicked: {
@@ -196,9 +223,6 @@ MainView {
                             x.onreadystatechange = function() {
                                 if (x.readyState == 4) {
                                     b.state = "gotcode";
-                                    console.log(x.status);
-                                    console.log(x.responseText);
-                                    console.log(new Date());
                                     try {
                                         var j = JSON.parse(x.responseText);
                                         if (!j.code) throw new Error();
@@ -211,29 +235,28 @@ MainView {
                             }
                             x.send("pushtoken=" + encodeURIComponent(pushClient.token) + "&appversion=0.1");
                         }
-                        states: [
-                            State {
-                                name: "waiting"
-                                PropertyChanges { target: b; text: "Get a code for an app" }
-                                PropertyChanges { target: b; enabled: true }
-                            },
-                            State {
-                                name: "getting"
-                                PropertyChanges { target: b; text: "Getting a code" }
-                                PropertyChanges { target: code; text: "..." }
-                                PropertyChanges { target: b; enabled: false }
-                            },
-                            State {
-                                name: "gotcode"
-                                PropertyChanges { target: b; text: "Get a code for an app" }
-                                PropertyChanges { target: b; enabled: true }
-                            }
-                        ]
+                        states: [ State {
+                            name: "waiting"
+                            PropertyChanges { target: ds; horizontalOffset: 0; verticalOffset: 0; }
+                        },State {
+                            name: "backtowaiting"
+                            PropertyChanges { target: ds; horizontalOffset: 0; verticalOffset: 0; }
+                        }, State {
+                            name: "getting"
+                            PropertyChanges { target: codewaiting; statusText: "Waiting for code" }
+                            PropertyChanges { target: ds; horizontalOffset: 10; verticalOffset: 6; color: "black"}
+                        }, State {
+                            name: "gotcode"
+                            PropertyChanges { target: codewaiting; statusText: "Waiting for app to pair" }
+                            PropertyChanges { target: ds; horizontalOffset: 10; verticalOffset: 6; color: "black"}
+                        } ]
+                        visible: state == "waiting"
                     }
                     ActivityIndicator {
                         id: spinner
-                        height: code.height
+                        height: parent.height / 2
                         anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.verticalCenter: parent.verticalCenter
                         running: b.state == "getting"
                         visible: running
                     }
@@ -244,81 +267,147 @@ MainView {
                         horizontalAlignment: Text.AlignHCenter
                         fontSize: "x-large"
                         width: parent.width
-                        visible: !spinner.running
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: b.state == "gotcode"
                     }
-                    ListView {
-
-                        Scrollbar {
-                            flickableItem: urllist
-                            align: Qt.AlignTrailing
+                    Button {
+                        id: codewaiting
+                        property string statusText: ""
+                        Label {
+                            id: inner
+                            anchors {centerIn: parent }
+                            text: parent.statusText + '… Cancel'
+                            color: Theme.palette.normal.backgroundText
+                            fontSize: "x-small"
                         }
+                        width: inner.width
+                        anchors.right: parent.right
+                        anchors.rightMargin: units.gu(1)
+                        anchors.bottom: parent.bottom
+                        visible: b.state == "gotcode" || b.state == "getting"
+                        onClicked: {
+                            b.state = "backtowaiting";
+                            backtowaitingdelay.start()
+                        }
+                        color: Qt.rgba(0,0,0,0)
+                        Timer {
+                            id: backtowaitingdelay
+                            interval: 2000
+                            repeat: false
+                            running: false
+                            onTriggered: b.state = "waiting"
+                        }
+                    }
+                }
 
-                        id: urllist
-                        model: sorted_urls
-                        width: parent.width
-                        height: pg.height - b.height - code.height - spacer.height - (col.spacing * 3)
-                        delegate: ListItem.Empty{ /* make my own listitem */
+                DropShadow {
+                    id: ds
+                    anchors.fill: codebox
+                    horizontalOffset: 0
+                    verticalOffset: 0
+                    radius: 16
+                    samples: 32
+                    color: mainView.backgroundColor
+                    source: codebox
+                    transparentBorder: true
+                    Behavior on horizontalOffset {
+                        NumberAnimation { easing.type: Easing.OutBounce; duration: 1000 }
+                    }
+                    Behavior on verticalOffset {
+                        NumberAnimation { easing.type: Easing.OutBounce; duration: 1000 }
+                    }
+                    Behavior on color {
+                        ColorAnimation { duration: 2000 }
+                    }
+                }
 
-                            __height: Math.max(contItem.height, units.gu(6))
-                            id: subtitledListItem
-                            removable: true
-                            onItemRemoved: {
-                                db.putDoc("", model.docId);
-                                mainView.reaggregateListModels();
+
+                ListView {
+                    Scrollbar {
+                        flickableItem: urllist
+                        align: Qt.AlignTrailing
+                    }
+
+                    clip: true
+                    id: urllist
+                    model: sorted_urls
+                    width: parent.width
+                    height: pg.height - codebox.height - codebox.anchors.topMargin - codebox.anchors.bottomMargin - anchors.topMargin
+                    anchors.top: codebox.bottom
+                    anchors.topMargin: units.gu(2)
+                    anchors.bottom: pg.bottom
+                    delegate: ListItem.Empty{ /* make my own listitem */
+
+                        __height: Math.max(contItem.height, units.gu(6))
+                        id: subtitledListItem
+                        removable: true
+                        onItemRemoved: {
+                            db.putDoc("", model.docId);
+                            mainView.reaggregateListModels();
+                        }
+                        onClicked: {
+                            console.log(model.contents.url);
+                            Qt.openUrlExternally(model.contents.url);
+                        }
+                        Item {
+                            id: contItem
+                            anchors.leftMargin: units.gu(2)
+                            anchors.rightMargin: units.gu(2)
+
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            height: childrenRect.height + label.anchors.topMargin + subLabel.anchors.bottomMargin
+                            Label {
+                                id: label
+                                text: model.contents.message ? label.displayURL(model.contents.message) : label.displayURL(model.contents.url)
+                                elide: Text.ElideMiddle
+                                anchors {
+                                    top: parent.top
+                                    left: parent.left
+                                    right: parent.right
+                                }
+
+                                function displayURL(url) {
+                                    return url.replace(/^https?:\/\//,'').replace(/\/$/,'');
+                                }
                             }
-                            onClicked: {
-                                console.log(model.contents.url);
-                                Qt.openUrlExternally(model.contents.url);
+                            Label {
+                                id: subLabel
+                                text: model.contents.appname
+                                width: (parent.width / 2) - units.gu(1)
+                                anchors {
+                                    left: parent.left
+                                    top: label.bottom
+                                }
+                                fontSize: "x-small"
+                                maximumLineCount: 1
+                                clip: true
+                                color: Theme.palette.normal.backgroundText
                             }
-                            Item {
-                                id: contItem
-                                anchors.leftMargin: units.gu(2)
-                                anchors.rightMargin: units.gu(2)
+                            Label {
+                                id: dateLabel
+                                text: {
+                                    function to2(s) {
+                                        var ss = s.toString();
+                                        if (ss.length < 2) ss = "0" + ss;
+                                        return ss
+                                    }
 
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                height: childrenRect.height + label.anchors.topMargin + subLabel.anchors.bottomMargin
-                                Label {
-                                    id: label
-                                    text: model.contents.message || model.contents.url
-                                    elide: Text.ElideMiddle
-                                    anchors {
-                                        top: parent.top
-                                        left: parent.left
-                                        right: parent.right
-                                    }
+                                    var dt = new Date(model.contents.date);
+                                    return dt.getHours() + "." + to2(dt.getMinutes()) + " " + to2(dt.getDate()) + "/" + to2(dt.getMonth()+1) + "/" + dt.getFullYear();
                                 }
-                                Label {
-                                    id: subLabel
-                                    text: model.contents.appname
-                                    width: (parent.width / 2) - units.gu(1)
-                                    anchors {
-                                        left: parent.left
-                                        top: label.bottom
-                                    }
-                                    fontSize: "x-small"
-                                    maximumLineCount: 1
-                                    clip: true
-                                    color: Theme.palette.normal.backgroundText
+                                width: (parent.width / 2) - units.gu(1)
+                                horizontalAlignment: Text.AlignRight
+                                anchors {
+                                    right: parent.right
+                                    top: label.bottom
                                 }
-                                Label {
-                                    id: dateLabel
-                                    text: {
-                                        var dt = new Date(model.contents.date);
-                                        return dt.getHours() + "." + dt.getMinutes() + " " + dt.getDate() + "/" + dt.getMonth() + "/" + dt.getFullYear();
-                                    }
-                                    width: (parent.width / 2) - units.gu(1)
-                                    horizontalAlignment: Text.AlignRight
-                                    anchors {
-                                        right: parent.right
-                                        top: label.bottom
-                                    }
-                                    fontSize: "x-small"
-                                    maximumLineCount: 1
-                                    clip: true
-                                    color: Theme.palette.normal.backgroundText
-                                }
+                                fontSize: "x-small"
+                                maximumLineCount: 1
+                                clip: true
+                                color: Theme.palette.normal.backgroundText
                             }
                         }
                     }

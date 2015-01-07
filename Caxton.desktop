@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Caxton
-Exec=qmlscene $@ main.qml
+Exec=qmlscene $@ main.qml -- %u
 Icon=Caxton.png
 Terminal=false
 Type=Application

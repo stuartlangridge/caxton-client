@@ -27,7 +27,7 @@ Project {
     }
     Files {
         directory: "."
-        paths: ["manifest.json",".excludes", "caxtonHelper", "caxtonHelper.json"]
+        paths: ["manifest.json",".excludes", "caxtonHelper", "caxtonHelper.json", "Caxton.url-dispatcher"]
     }
     Files {
         directory: "www"
