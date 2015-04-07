@@ -5,7 +5,7 @@ from xdg.BaseDirectory import load_data_paths
 f1, f2 = sys.argv[1:3]
 
 excludes = []
-pths = list(load_data_paths("org.kryogenix.caxton"))
+pths = list(load_data_paths("caxton.sil"))
 if len(pths) < 1:
     # no database available, so blithely continue on
     pass

@@ -1,5 +1,5 @@
 {
-    "name": "org.kryogenix.caxton",
+    "name": "caxton.sil",
     "description": "Connecting your phone and your desktop: send web pages and messages from elsewhere to your phone and your apps",
     "architecture": "all",
     "title": "Caxton",
@@ -14,7 +14,7 @@
             "push-helper": "caxtonHelper.json"
         }
     },
-    "version": "0.1",
+    "version": "1.0",
     "maintainer": "Stuart Langridge <sil-launchpad@kryogenix.org>",
     "framework": "ubuntu-sdk-14.10"
 }

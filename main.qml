@@ -4,6 +4,7 @@ import Ubuntu.PushNotifications 0.1
 import Ubuntu.Components.ListItems 1.0 as ListItem
 import U1db 1.0 as U1db
 import QtGraphicalEffects 1.0
+import Qt.labs.settings 1.0
 
 
 /*!
@@ -16,7 +17,7 @@ MainView {
     objectName: "mainView"
 
     // Note! applicationName needs to match the "name" field of the click manifest
-    applicationName: "org.kryogenix.caxton"
+    applicationName: "caxton.sil"
 
     /*
      This property enables the application to change orientation
@@ -31,6 +32,10 @@ MainView {
     height: units.gu(75)
 
     backgroundColor: "#1b3540"
+
+    Settings {
+        property alias selectedTabIndex: tabs.selectedTabIndex
+    }
 
     Timer {
         id: unsetCodeAfterTokenRetrieved
@@ -63,6 +68,7 @@ MainView {
     PushClient {
         id: pushClient
         Component.onCompleted: {
+            console.log("GOT TOKEN", pushClient.token);
             notificationsChanged.connect(function(msgs) {
                 console.log("GOT MESSAGES", JSON.stringify(msgs));
                 for (var k in msgs) {
@@ -93,7 +99,7 @@ MainView {
             });
             getNotifications();
         }
-        appId: "org.kryogenix.caxton_Caxton"
+        appId: "caxton.sil_Caxton"
     }
 
     U1db.Database { id: db; path: "caxton.u1db" }
@@ -188,6 +194,8 @@ MainView {
     }
 
     Tabs {
+        id: tabs
+        selectedTabIndex: 2
         Tab {
             title: i18n.tr("Caxton")
             page: Page {
@@ -223,6 +231,7 @@ MainView {
                             x.onreadystatechange = function() {
                                 if (x.readyState == 4) {
                                     b.state = "gotcode";
+                                    console.log("got back", x.responseText);
                                     try {
                                         var j = JSON.parse(x.responseText);
                                         if (!j.code) throw new Error();
@@ -233,7 +242,7 @@ MainView {
 
                                 }
                             }
-                            x.send("pushtoken=" + encodeURIComponent(pushClient.token) + "&appversion=0.1");
+                            x.send("pushtoken=" + encodeURIComponent(pushClient.token) + "&appversion=1.0");
                         }
                         states: [ State {
                             name: "waiting"
@@ -498,6 +507,56 @@ MainView {
                         text: appnamepage.editing ? i18n.tr("Done"): i18n.tr("Edit")
                     }
                 ]
+            }
+        }
+        Tab {
+            title: i18n.tr("About")
+            page: Page {
+                Column {
+                    width: parent.width - units.gu(6)
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: units.gu(2)
+                    anchors.top: parent.top
+                    anchors.topMargin: units.gu(2)
+
+                    Label {
+                        text: "What is Caxton?"
+                        fontSize: "x-large"
+                        width: parent.width
+                    }
+                    Label {
+                        text: "Caxton is for sending notifications from anywhere " +
+                              "to your Ubuntu phone. Send the page you're currently viewing " +
+                              "from your desktop browser, send notifications from IFTTT to " +
+                              "your phone, make your scripts alert you instantly when something " +
+                              "has changed."
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                    }
+                    Label {
+                        text: "Go to <a href='https://caxton.herokuapp.com/'>caxton.herokuapp.com</a> to find out more."
+                        onLinkActivated: Qt.openUrlExternally("https://caxton.herokuapp.com/")
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        linkColor: "#dddd00"
+                    }
+                    Button {
+                        text: "Get started"
+                        onClicked: tabs.selectedTabIndex = 0
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        gradient: UbuntuColors.orangeGradient
+                    }
+                }
+                Label {
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: units.gu(1)
+                    anchors.right: parent.right
+                    anchors.rightMargin: units.gu(1)
+                    text: "This is an <a href='http://www.kryogenix.org/'>sil</a> thing"
+                    fontSize: "small"
+                    onLinkActivated: Qt.openUrlExternally("http://kryogenix.org/")
+                    linkColor: "#dddd00"
+                }
             }
         }
     }
